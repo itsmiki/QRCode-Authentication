@@ -1,1 +1,1 @@
-#QRCode Authentication
+# QR Code Authentication
