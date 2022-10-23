@@ -1,0 +1,12 @@
+{
+    "loginToken": {
+        "timeAlive": 120
+    },
+    "registerToken": {
+        "timeAlive": 120
+    },
+    "mobileAppTemp": {
+        "timeAlive": 120
+    }
+
+}
