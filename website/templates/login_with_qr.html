@@ -1,0 +1,15 @@
+{% extends "base.html" %} {% block title %}Login{% endblock %} {% block content
+%}
+<br>
+<form method="POST">
+  <h3 align="center">Login with QRCode</h3>
+  <br />
+  <div align="center">
+    <img src="{{ qrcode }}">
+  </div>
+  <br>
+  <div align="center">
+    <button type="submit" class="btn btn-primary">Login</button>
+  </div>
+</form>
+{% endblock %}
