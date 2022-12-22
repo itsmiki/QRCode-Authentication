@@ -63,7 +63,11 @@ def loginWithQR():
             login_user(user, remember=True)
             return redirect(url_for('views.home'))
         else:
+<<<<<<< HEAD
             flash('Token not authorized!', category='error')
+=======
+            flash(response_decoded, category='error')
+>>>>>>> f8d9003ba51d56533a3c250193e39f33046bff64
             qrcode = QRcode.qrcode(record.loginToken_jwt, box_size=5)
             return render_template("login_with_qr.html", user=current_user, qrcode=qrcode)
 

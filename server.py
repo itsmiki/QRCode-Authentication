@@ -38,7 +38,11 @@ def connectMobileApp(mobileAppId, key):
         if db_checkMobileAppIdTemp(mobileAppId):
             db_deleteMobileAppIdTemp(mobileAppId)
             if not db_registerMobileApp(mobileAppId, key):
+<<<<<<< HEAD
                 return "WRONG PUBLIC KEY", status.HTTP_500_INTERNAL_SERVER_ERROR
+=======
+                return "WRONG PUBLIC KEY", status.HTTP_500_INTERNAL_SERVER_ERROR # włączyć unique key
+>>>>>>> f8d9003ba51d56533a3c250193e39f33046bff64
         else:
             return "WRONG OR EXPIRED MOBILE APP ID", status.HTTP_500_INTERNAL_SERVER_ERROR
     except:
@@ -73,7 +77,11 @@ def giveRegisterQr(appId, accountId):
                 return JWTToken, status.HTTP_200_OK
             return "INTERNAL SERVER ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR
     else:
+<<<<<<< HEAD
         return "ALREADY REGISTERED", status.HTTP_401_UNAUTHORIZED
+=======
+        return "UNAUTHORIZED", status.HTTP_401_UNAUTHORIZED
+>>>>>>> f8d9003ba51d56533a3c250193e39f33046bff64
 
 @app.route("/v1/login/get/is-authorized/token/<token>", methods = ['GET'])
 def giveAuthorizationStatus(token):
@@ -131,6 +139,7 @@ def authorizeRegisterToken():
     else:
         return "UNAUTHORIZED", status.HTTP_401_UNAUTHORIZED
 
+<<<<<<< HEAD
 @app.route("/v1/delete/get/account", methods = ['GET'])
 def deleteAccount():
     authorization = request.headers.get('Authorization')
@@ -152,6 +161,8 @@ def deleteAccount():
     else:
         return "UNAUTHORIZED", status.HTTP_401_UNAUTHORIZED
 
+=======
+>>>>>>> f8d9003ba51d56533a3c250193e39f33046bff64
 
 @app.errorhandler(404)
 def page_not_found(error):

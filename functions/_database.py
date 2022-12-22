@@ -31,6 +31,7 @@ def db_getWebAppName(webAppId):
     except sqlite3.Error as error:
         return error
 
+<<<<<<< HEAD
 def db_getWebAppId(webAppName):
     con=sqlite3.connect("server.db")
     cur = con.cursor()
@@ -45,6 +46,8 @@ def db_getWebAppId(webAppName):
     except sqlite3.Error as error:
         return error
 
+=======
+>>>>>>> f8d9003ba51d56533a3c250193e39f33046bff64
 def db_checkAccount(accountId):
     con=sqlite3.connect("server.db")
     cur = con.cursor()
@@ -170,6 +173,7 @@ def db_deleteMobileAppIdTemp(appId):
     con.close()
     return True
 
+<<<<<<< HEAD
 def db_deleteAccount(webAppId, mobileAppId):
     con=sqlite3.connect("server.db")
     cur = con.cursor()
@@ -181,6 +185,8 @@ def db_deleteAccount(webAppId, mobileAppId):
     con.close()
     return True
 
+=======
+>>>>>>> f8d9003ba51d56533a3c250193e39f33046bff64
 def db_registerMobileApp(mobileAppId, publicKey):
     con=sqlite3.connect("server.db")
     cur = con.cursor()
@@ -397,7 +403,11 @@ if __name__ == "__main__":
     # print(db_checkWebApp("123"))
     # print(db_checkLoginTokenAuthorization("d0c02877-dd9b-46e6-85de-9f40933ca659"))
     # print(db_checkMobileAppIdTemp('911aa442-d6b4-453e-973f-89af4a20f752'))
+<<<<<<< HEAD
     # print(db_deleteExpiredLoginTokens())
     print(db_deleteAccount("b2fd0695-47f4-4aa8-aa46-04f3a0218493", "29222065-0c1a-49cd-a4ab-3300c9d4e05e"))
     print(db_getWebAppId())
+=======
+    print(db_deleteExpiredLoginTokens())
+>>>>>>> f8d9003ba51d56533a3c250193e39f33046bff64
     pass

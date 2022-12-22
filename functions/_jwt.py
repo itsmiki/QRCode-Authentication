@@ -28,7 +28,11 @@ def verifyJWT(encodedJWT):
     headers = getJWTHeaders(encodedJWT)
     publicKey = db_getPublicKey(headers['kid'])
     try:
+<<<<<<< HEAD
         # print(jwt.decode(encodedJWT, publicKey))
+=======
+        print(jwt.decode(encodedJWT, publicKey))
+>>>>>>> f8d9003ba51d56533a3c250193e39f33046bff64
         return True
     except:
         return False
@@ -59,7 +63,11 @@ def verifyconnectionJWT(encodedJWT):
     headers = getJWTHeaders(encodedJWT)
     publicKey = db_getPublicKey(headers['kid'])
     try:
+<<<<<<< HEAD
         # print(jwt.decode(encodedJWT, publicKey))
+=======
+        print(jwt.decode(encodedJWT, publicKey))
+>>>>>>> f8d9003ba51d56533a3c250193e39f33046bff64
         return True
     except:
         return False
