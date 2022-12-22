@@ -1,79 +1,163 @@
-from codecs import unicode_escape_decode
-from inspect import signature
-from flask import Flask, jsonify
-from flask import request
+import uuid
+import json
+import time
+
+from flask import Flask, jsonify, request
 from flask_cors import CORS
-import string
-import random
-from threading import Timer
-from Crypto.PublicKey import RSA
-from Crypto.Signature import PKCS1_v1_5
-from Crypto.Hash import SHA256
+from flask_api import status
+
+from functions._jwt import createJWT, createJWTAuth, getJWTHeaders, getJWTPayload, verifyJWT
+from functions._database import *
+from flask_ngrok import run_with_ngrok
 
 app = Flask(__name__)
 CORS(app)
+# run_with_ngrok(app)
 
 ACTIVE_CODES = {}
-
-@app.route("/")
-def home():
-    x = {'id': 'Hello, World!'}
-    return jsonify(ACTIVE_CODES)
+with open("config.json") as file: 
+    config = json.load(file)
 
 
-@app.route("/getqrcode/v1/application/<app_id>", methods = ['GET'])
-def get_qr(app_id):
-    #print(request.json)
-    print(app_id)
+@app.route("/v1/connect/get/mobile-id", methods= ['GET'])
+def giveMobileId():
+    id = uuid.uuid4()
+    print(id)
+    try:
+        if db_registerMobileAppIdTemp(str(id), int(time.time()), config["mobileAppTemp"]["timeAlive"]) is False:
+            return "INTERNAL SERVER ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR
+    except:
+        return "INTERNAL SERVER ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR
 
-    def get_random_string():
-        letters = string.ascii_uppercase
-        result_str = ''.join(random.choice(letters) for i in range(12))
-        ACTIVE_CODES[str(result_str)] = app_id
-        timer = Timer(60.0, lambda: [ACTIVE_CODES.pop(result_str), print(result_str + "expired!")])
-        timer.start()
-        return(result_str)
-
+    return jsonify(id) , status.HTTP_200_OK
 
 
-    x = {'qrcode_key': get_random_string()}
-    print(ACTIVE_CODES)
+@app.route("/v1/connect/get/mobile-app/<mobileAppId>/key/<key>", methods= ['GET'])
+def connectMobileApp(mobileAppId, key):
+    try:
+        if db_checkMobileAppIdTemp(mobileAppId):
+            db_deleteMobileAppIdTemp(mobileAppId)
+            if not db_registerMobileApp(mobileAppId, key):
+                return "WRONG PUBLIC KEY", status.HTTP_500_INTERNAL_SERVER_ERROR
+        else:
+            return "WRONG OR EXPIRED MOBILE APP ID", status.HTTP_500_INTERNAL_SERVER_ERROR
+    except:
+        return "INTERNAL SERVER ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR
+    return "OK", status.HTTP_200_OK
 
-    return jsonify(x)
 
-@app.route("/authorization/v1", methods=['POST'])
-def check():
-    username = request.form['username']
-    qr_code = request.form['qr_code']
-    signature = int(request.form['signature']).to_bytes(256, 'little')
-    print(signature)
-    #print(request.form)
-    #print(signature)
+@app.route("/v1/login/get/qr/application-id/<appId>", methods = ['GET'])
+def giveLoginQr(appId):
+    if db_checkWebApp(appId) == False:
+        return "UNAUTHORIZED", status.HTTP_401_UNAUTHORIZED
+    else:
+        token = str(uuid.uuid4())
+        if db_createLoginToken(appId, token, int(time.time()), config["loginToken"]["timeAlive"]) is True:
+            JWTToken = createJWT(token, "login")
+            return JWTToken, status.HTTP_200_OK
+        else:
+            return "INTERNAL_SERVER_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR
 
-    rsa_public_key = RSA.importKey(open("public_keys/" + username + ".pem", "rb").read())
-    verifier = PKCS1_v1_5.new(rsa_public_key)
 
-    hash = SHA256.new(bytes(qr_code, encoding='utf-8'))
-    # #print(type(signature))
-    decrypted = verifier.verify(hash, signature)
-    print(decrypted)
+@app.route("/v1/register/get/qr/application-id/<appId>/account-id/<accountId>", methods = ['GET'])
+def giveRegisterQr(appId, accountId):
+    if db_checkWebApp(appId) is True and db_checkAccount(accountId) is False:
+        token = str(uuid.uuid4())
+        if db_createRegisterToken(appId, accountId, token, int(time.time()), config["loginToken"]["timeAlive"]) is True:
+            JWTToken = createJWT(token, "register")
+            return JWTToken, status.HTTP_200_OK
+        else:
+            existingToken = db_getRegisterToken(accountId, appId)
+            if existingToken is not None:
+                JWTToken = createJWT(existingToken, "register")
+                return JWTToken, status.HTTP_200_OK
+            return "INTERNAL SERVER ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR
+    else:
+        return "ALREADY REGISTERED", status.HTTP_401_UNAUTHORIZED
 
-    return jsonify(decrypted)
+@app.route("/v1/login/get/is-authorized/token/<token>", methods = ['GET'])
+def giveAuthorizationStatus(token):
+    db_deleteExpiredLoginTokens()
+    auth = db_checkLoginTokenAuthorization(token)
+    if auth is True:
+        accountId = db_getAccountIdFromLoginToken(token)
+        return createJWTAuth(token, accountId, True), status.HTTP_200_OK
+    elif auth is False:
+        return createJWTAuth(token, None, False), status.HTTP_200_OK
+    else:
+        return "TOKEN DOES NOT EXIST", status.HTTP_500_INTERNAL_SERVER_ERROR
 
-    # message = 
 
-    # verifier = PKCS1_v1_5.new(rsa_key)
-    # h = SHA.new(signed_qrcode)
-    # if verifier.verify(h, signature_received_with_the_data):
-    #     print "OK"
-    # else:
-    #     print "Invalid"
+@app.route("/v1/login/get/authorize", methods = ['GET'])
+def authorizeLoginToken():
+    db_deleteExpiredLoginTokens()
+    authorization = request.headers.get('Authorization')
+    try:
+        is_verified = verifyJWT(authorization.encode('utf-8'))
+    except:
+        return "MALFORMED JWT", status.HTTP_500_INTERNAL_SERVER_ERROR
     
+    if is_verified is True:
+        token = getJWTPayload(authorization.encode('utf-8'))['token']
+        mobileAppId = getJWTHeaders(authorization.encode('utf-8'))['kid']
+        if db_checkLoginToken(token):
+            db_associateAccountWithLoginToken(mobileAppId, token)
+            db_authorizeLoginToken(token)
+            return "AUTHENTICATED LOGIN", status.HTTP_200_OK
+        return "TOKEN EXPIRED DOES NOT EXIST", status.HTTP_500_INTERNAL_SERVER_ERROR
+    else:
+        return "UNAUTHORIZED", status.HTTP_401_UNAUTHORIZED
+
+
+@app.route("/v1/register/get/authorize", methods = ['GET'])
+def authorizeRegisterToken():
+    db_deleteExpiredRegisterTokens()
+    authorization = request.headers.get('Authorization')
+    try:
+        is_verified = verifyJWT(authorization.encode('utf-8'))
+    except:
+        return "MALFORMED JWT", status.HTTP_500_INTERNAL_SERVER_ERROR
     
-    return jsonify("Works!")
+    if is_verified is True:
+        token = getJWTPayload(authorization.encode('utf-8'))['token']
+        mobileAppId = getJWTHeaders(authorization.encode('utf-8'))['kid']
+        try:
+            webAppId, accountId = db_getWebAppIdAccountIdFromRegisterToken(token)
+            db_registerAccount(accountId, webAppId, mobileAppId)
+            db_deleteRegisterToken(token)
+            return "ACCOUNT REGISTERED", status.HTTP_200_OK
+        except:
+            return "TOKEN EXPIRED OR DOES NOT EXIST", status.HTTP_500_INTERNAL_SERVER_ERROR
+    else:
+        return "UNAUTHORIZED", status.HTTP_401_UNAUTHORIZED
+
+@app.route("/v1/delete/get/account", methods = ['GET'])
+def deleteAccount():
+    authorization = request.headers.get('Authorization')
+    print(authorization)
+    try:
+        is_verified = verifyJWT(authorization.encode('utf-8'))
+    except:
+        return "MALFORMED JWT", status.HTTP_500_INTERNAL_SERVER_ERROR
     
+    if is_verified is True:
+        webAppName = getJWTPayload(authorization.encode('utf-8'))['name']
+        mobileAppId = getJWTHeaders(authorization.encode('utf-8'))['kid']
+        try:
+            webAppId = db_getWebAppId(webAppName)
+            db_deleteAccount(webAppId, mobileAppId)
+            return "ACCOUNT DELETED", status.HTTP_200_OK
+        except:
+            return "ACCOUNT DOES NOT EXIST", status.HTTP_500_INTERNAL_SERVER_ERROR
+    else:
+        return "UNAUTHORIZED", status.HTTP_401_UNAUTHORIZED
+
+
+@app.errorhandler(404)
+def page_not_found(error):
+    return "NOT FOUND", status.HTTP_404_NOT_FOUND
 
 
 if __name__ == "__main__":
-
-    app.run(debug=True)
+    app.run("0.0.0.0", debug=True)
+    # app.run()
